@@ -5,7 +5,7 @@ date:   2022-11-15 00:00:00
 tags: [cycling, health, data]
 ---
 
-Strava has a neat API which allows you to access data on all your activities in an easy manner. Since I have been reading a lot about the science behind endurance training and metabolic fitness recently, I thought this would be a good opportunity to see whethere I could tease some information from my own activity data. [Here is a decent guide](https://medium.com/analytics-vidhya/accessing-user-data-via-the-strava-api-using-stravalib-d5bee7fdde17) on how to set up the API in Python.
+Strava has a neat API which allows you to access data on all your activities in an easy manner. Since I have been reading a lot about the science behind endurance training and metabolic fitness recently, I thought this would be a good opportunity to see whether I could tease some information from my own activity data. [Here is a decent guide](https://medium.com/analytics-vidhya/accessing-user-data-via-the-strava-api-using-stravalib-d5bee7fdde17) on how to set up the API in Python.
 
 Firstly I scraped the heartrate data from all of my activities from the start of this year until November [^1]. Then, combining these heart rate values I calculated a histogram of them, setting the bin size to 2bpm.
 
