@@ -7,9 +7,12 @@ Outside of research I like to spend my time cycling and running, I also enjoy pl
 
 
 ## Publications
-1. _"Feynman-Hellmann approach to transition matrix elements and quasidegenerate energy states"_ [https://doi.org/10.1103/PhysRevD.108.034507](https://doi.org/10.1103/PhysRevD.108.034507)
-2. _"Constraining beyond the standard model nucleon isovector charges"_ [https://doi.org/10.1103/PhysRevD.108.094511](https://doi.org/10.1103/PhysRevD.108.094511)
-3. _"Moments and power corrections of longitudinal and transverse proton structure functions from lattice QCD"_ [https://doi.org/10.1103/PhysRevD.107.054503](https://doi.org/10.1103/PhysRevD.107.054503)
+
+☞ _"η and η′ Production in J/ψ Radiative Decays from Quantum Chromodynamics"_ [Phys.Rev.Lett. 135 (2025) 16, 161904](https://doi.org/10.1103/tdk2-bk8w)
+☞ _"η and η′ meson production in J/ψ radiative decays from lattice QCD"_ [Phys.Rev.D 112 (2025) 7, 074505](https://doi.org/10.1103/jvpg-3ph4)
+☞ _"Feynman-Hellmann approach to transition matrix elements and quasidegenerate energy states"_ [https://doi.org/10.1103/PhysRevD.108.034507](https://doi.org/10.1103/PhysRevD.108.034507)
+☞ _"Constraining beyond the standard model nucleon isovector charges"_ [https://doi.org/10.1103/PhysRevD.108.094511](https://doi.org/10.1103/PhysRevD.108.094511)
+☞ _"Moments and power corrections of longitudinal and transverse proton structure functions from lattice QCD"_ [https://doi.org/10.1103/PhysRevD.107.054503](https://doi.org/10.1103/PhysRevD.107.054503)
 
 ## Proceedings
 1. M. Batelaan et al.: _"Nucleon Form Factors from the Feynman-Hellmann Method in Lattice QCD"_ [https://arxiv.org/abs/2202.01366](https://arxiv.org/abs/2202.01366)
