@@ -29,4 +29,4 @@ Outside of research I like to spend my time cycling and running, I also enjoy pl
 - APLAT2020 parallel session: _"Nucleon electromagnetic form factors at high momenta using the Feynman-Hellmann method"_ [Nucleon electromagnetic form factors at large momenta using the Feynman-Hellmann theorem](https://conference-indico.kek.jp/event/113/contributions/2066/)
 
 ### Contact Me
-- email: mbatelaan [at] wm.edu
+- email: m.batelaan [at] adelaide.edu.au
