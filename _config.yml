@@ -23,6 +23,8 @@ sass:
 navbar:
  - name: "About"
    link: "about"
+ - name: "Research"
+   link: "research"
  - name: "Blog"
    link: "blog"
  - name: "Tags"
@@ -43,6 +45,9 @@ kramdown:
 
 collections:
   "1000":
+    output: true
+    permalink: /:collection/:title/
+  "research":
     output: true
     permalink: /:collection/:title/
   "shorts":
