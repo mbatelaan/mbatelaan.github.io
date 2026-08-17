@@ -1,0 +1,83 @@
+<div style="padding: 1rem 0;">
+<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">A pixel-art frog on a lily pad that blinks automatically and hops when clicked.</h2>
+<div style="display:flex;justify-content:center;">
+  <canvas id="frogc" width="280" height="240" style="width:280px;height:240px;cursor:pointer;image-rendering:pixelated;"></canvas>
+</div>
+<script>
+(function(){
+  var W=280,H=240,s=8,anchorX=140,groundY=205,jump=52;
+  var FROG=[
+    "................","...dd......dd...","..dwwd....dwwd..","..dwkd....dkwd..",
+    "..dggggggggggd..",".dggggggggggggd.",".dggggggggggggd.",".dggllllllllggd.",
+    ".dgllllllllllgd.",".dgllpllllpllgd.",".dglllpppplllgd.",".dggllllllllggd.",
+    "..dggggggggggd..","...dggggggggd...",".dgggd....dgggd.",".dd.dd....dd.dd."
+  ];
+  var C={d:"#2f5c3a",g:"#57b84a",l:"#a4e06a",w:"#ffffff",k:"#1a1a1a",p:"#e8607f"};
+  var cv=document.getElementById("frogc"),ctx=cv.getContext("2d");
+  var dpr=window.devicePixelRatio||1;
+  cv.width=W*dpr;cv.height=H*dpr;ctx.scale(dpr,dpr);ctx.imageSmoothingEnabled=false;
+
+  var hopStart=null,HOP=620;
+  var blinkStart=null,BLINK=150,nextBlink=performance.now()+2000;
+  var ripples=[];
+
+  function triggerHop(t){ if(hopStart===null) hopStart=t; }
+  cv.addEventListener("click",function(){triggerHop(performance.now());});
+  cv.addEventListener("touchstart",function(e){triggerHop(performance.now());e.preventDefault();},{passive:false});
+
+  function drawPad(t){
+    ctx.save();ctx.translate(anchorX,groundY+6);
+    ctx.fillStyle="#3f8f57";ctx.beginPath();ctx.ellipse(0,0,74,18,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#357a49";ctx.beginPath();ctx.ellipse(0,3,74,18,0,0.15,Math.PI-0.15);ctx.fill();
+    ctx.fillStyle="#2c6b3d";ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(30,-12);ctx.lineTo(44,2);ctx.closePath();ctx.fill();
+    for(var i=0;i<ripples.length;i++){var r=ripples[i];var p=(t-r)/520;if(p>1)continue;
+      ctx.strokeStyle="rgba(255,255,255,"+(0.5*(1-p))+")";ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.ellipse(0,0,9+p*52,3+p*12,0,0,Math.PI*2);ctx.stroke();}
+    ctx.restore();
+    ripples=ripples.filter(function(r){return (t-r)/520<=1;});
+  }
+
+  function frameState(t){
+    var scaleX=1,scaleY=1,yOff=0;
+    if(hopStart!==null){
+      var p=(t-hopStart)/HOP;
+      if(p>=1){ hopStart=null; ripples.push(t); }
+      else if(p<0.14){ var a=p/0.14; scaleY=1-0.2*a; scaleX=1+0.14*a; }
+      else if(p<0.86){ var a=(p-0.14)/0.72; yOff=-jump*Math.sin(Math.PI*a); scaleY=1.12; scaleX=0.93; }
+      else { var a=(p-0.86)/0.14; scaleY=0.82+0.18*a; scaleX=1.1-0.1*a; }
+    } else {
+      scaleY=1+0.025*Math.sin(t/620);
+    }
+    var blink=false;
+    if(blinkStart!==null){ if(t-blinkStart>BLINK) blinkStart=null; else blink=true; }
+    return {scaleX:scaleX,scaleY:scaleY,yOff:yOff,blink:blink};
+  }
+
+  function drawFrog(st){
+    var cw=s*st.scaleX, ch=s*st.scaleY;
+    var topY=groundY - 16*ch + st.yOff;
+    for(var row=0;row<16;row++){
+      var line=FROG[row];
+      for(var col=0;col<16;col++){
+        var chr=line[col]; if(chr===".")continue;
+        if(st.blink&&(chr==="w"||chr==="k"))chr="d";
+        ctx.fillStyle=C[chr];
+        var x=anchorX+(col-8)*cw;
+        var y=topY+row*ch;
+        ctx.fillRect(Math.round(x),Math.round(y),Math.ceil(cw)+0.5,Math.ceil(ch)+0.5);
+      }
+    }
+  }
+
+  function loop(t){
+    ctx.clearRect(0,0,W,H);
+    if(t>nextBlink){ if(blinkStart===null)blinkStart=t; nextBlink=t+1800+Math.random()*3000; }
+    var st=frameState(t);
+    drawPad(t);
+    drawFrog(st);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</div>
