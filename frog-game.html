@@ -1,0 +1,262 @@
+---
+layout: default
+title: Frog Jump
+---
+
+<style>
+.fg-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 1.5em 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#fg-cv {
+  display: block;
+  border: 3px solid #2a6a20;
+  border-radius: 3px;
+  cursor: pointer;
+  touch-action: none;
+  max-width: 100%;
+  image-rendering: pixelated;
+}
+.fg-hint { font-family: monospace; font-size: 13px; color: #666; margin-top: 6px; }
+</style>
+
+<div class="fg-wrap">
+  <canvas id="fg-cv" width="620" height="200"></canvas>
+  <p class="fg-hint">Space / tap to jump</p>
+</div>
+
+<script>
+(function () {
+'use strict';
+
+const cv = document.getElementById('fg-cv');
+const g  = cv.getContext('2d');
+const W  = cv.width, H = cv.height;
+
+/* ── pixel-art frog ── */
+const ART = [
+  "................",
+  "...dd......dd...",
+  "..dwwd....dwwd..",
+  "..dwkd....dkwd..",
+  "..dggggggggggd..",
+  ".dggggggggggggd.",
+  ".dggggggggggggd.",
+  ".dggllllllllggd.",
+  ".dgllllllllllgd.",
+  ".dgllpllllpllgd.",
+  ".dglllpppplllgd.",
+  ".dggllllllllggd.",
+  "..dggggggggggd..",
+  "...dggggggggd...",
+  ".dgggd....dgggd.",
+  ".dd.dd....dd.dd."
+];
+const ART_C = { d:'#2f5c3a', g:'#57b84a', l:'#a4e06a', w:'#ffffff', k:'#1a1a1a', p:'#e8607f' };
+const PS  = 3;                    // canvas px per art-pixel (smaller frog)
+const FPW = ART[0].length * PS;  // 48
+const FPH = ART.length    * PS;  // 48
+
+/* ── constants ── */
+const FX       = 100;             // frog fixed screen X
+const PAD_TOP  = H - 42;         // y where frog feet rest
+const PAD_H    = 12;             // lily pad height in px
+const GRAVITY  = 0.6;
+const JUMP_VY  = -10;
+const BASE_SPD = 2.5;
+const MAX_GAP  = 72;             // cap so every gap is jumpable
+
+/* ── state ── */
+let state = 'idle';
+let spd = BASE_SPD;
+let startTime = null, elapsed = 0, bestTime = 0;
+let pads = [];
+const frog = { y: PAD_TOP, vy: 0, on: true };
+
+let blinkStart = null, nextBlink = 0;
+let squashFrames = 0;
+
+/* ── lifecycle ── */
+function resetGame() {
+  spd = BASE_SPD;
+  startTime = null; elapsed = 0;
+  frog.y = PAD_TOP; frog.vy = 0; frog.on = true;
+  squashFrames = 0;
+  pads = [{ x: 20, w: 300 }];
+  let nx = 340;
+  for (let i = 0; i < 9; i++) {
+    const w = 80 + Math.random() * 50;
+    const gap = 35 + Math.random() * (MAX_GAP - 35);
+    pads.push({ x: nx, w });
+    nx += w + gap;
+  }
+  state = 'play';
+}
+
+function jump() {
+  if (state !== 'play') { resetGame(); return; }
+  if (frog.on) { frog.vy = JUMP_VY; frog.on = false; squashFrames = 0; }
+}
+
+/* ── input ── */
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); jump(); }
+});
+cv.addEventListener('pointerdown', e => { e.preventDefault(); jump(); });
+
+/* ── update ── */
+function update(t) {
+  if (blinkStart !== null && t - blinkStart > 150) blinkStart = null;
+  if (t > nextBlink) { blinkStart = t; nextBlink = t + 2000 + Math.random() * 3000; }
+
+  if (state !== 'play') return;
+
+  if (startTime === null) startTime = t;
+  elapsed = (t - startTime) / 1000;
+
+  spd = BASE_SPD + elapsed * 0.08;  // ramps with time, not frames
+
+  for (const p of pads) p.x -= spd;
+  pads = pads.filter(p => p.x + p.w > -10);
+
+  const last = pads[pads.length - 1];
+  if (last.x + last.w < W + 30) {
+    const w = 80 + Math.random() * 50;
+    const gap = 35 + Math.random() * (MAX_GAP - 35);
+    pads.push({ x: last.x + last.w + gap, w });
+  }
+
+  frog.vy += GRAVITY;
+  frog.y  += frog.vy;
+  const wasOn = frog.on;
+  frog.on = false;
+
+  for (const p of pads) {
+    if (FX > p.x + 6 && FX < p.x + p.w - 6 && frog.y >= PAD_TOP && frog.vy >= 0) {
+      frog.y = PAD_TOP; frog.vy = 0; frog.on = true;
+      if (!wasOn) squashFrames = 8;
+      break;
+    }
+  }
+  if (squashFrames > 0) squashFrames--;
+
+  if (frog.y > H + 60) {
+    bestTime = Math.max(bestTime, elapsed);
+    state = 'dead';
+  }
+}
+
+/* ── drawing ── */
+function drawBg() {
+  // flat water colour — simple and fast
+  g.fillStyle = '#3a8fbf';
+  g.fillRect(0, 0, W, H);
+  // three static-ish ripple lines
+  g.fillStyle = '#4aa0d0';
+  [50, 100, 148].forEach(y => g.fillRect(0, y, W, 2));
+}
+
+function drawPad(p) {
+  const x = Math.round(p.x);
+  const y = PAD_TOP - PAD_H + 2;
+  const w = Math.round(p.w);
+
+  // dark border
+  g.fillStyle = '#1e5218';
+  g.fillRect(x, y, w, PAD_H);
+
+  // main fill
+  g.fillStyle = '#3d8a2a';
+  g.fillRect(x + 2, y + 2, w - 4, PAD_H - 4);
+
+  // top highlight strip
+  g.fillStyle = '#5cb840';
+  g.fillRect(x + 2, y + 2, w - 4, 3);
+
+  // center vein
+  g.fillStyle = '#2a6a1a';
+  g.fillRect(x + Math.floor(w / 2) - 1, y + 2, 2, PAD_H - 4);
+
+  // notch (water-colour cut at top centre)
+  g.fillStyle = '#3a8fbf';
+  g.fillRect(x + Math.floor(w / 2) - 3, y, 6, 4);
+}
+
+function drawFrog() {
+  const blink = blinkStart !== null;
+  const inAir = !frog.on && state === 'play';
+
+  let sx = 1, sy = 1;
+  if (squashFrames > 0) {
+    const f = squashFrames / 8;
+    sy = 0.78 + 0.22 * (1 - f); sx = 1 + 0.18 * f;
+  } else if (inAir && frog.vy < 0) {
+    sy = 1.1; sx = 0.92;
+  } else if (inAir && frog.vy > 0) {
+    sy = 1.05; sx = 0.95;
+  }
+
+  const cw = PS * sx, ch = PS * sy;
+  const ox = FX - (FPW * sx) / 2;
+  const oy = frog.y - FPH * sy;
+
+  ART.forEach((row, ri) => {
+    for (let ci = 0; ci < row.length; ci++) {
+      let chr = row[ci];
+      if (chr === '.') continue;
+      if (blink && (chr === 'w' || chr === 'k')) chr = 'd';
+      g.fillStyle = ART_C[chr] || '#57b84a';
+      g.fillRect(
+        Math.round(ox + ci * cw),
+        Math.round(oy + ri * ch),
+        Math.ceil(cw) + 0.5,
+        Math.ceil(ch) + 0.5
+      );
+    }
+  });
+}
+
+function drawHUD() {
+  const t  = elapsed.toFixed(1) + 's';
+  const hi = bestTime.toFixed(1) + 's';
+  g.fillStyle = 'rgba(0,0,0,0.25)';
+  g.fillRect(W - 148, 7, 140, 26);
+  g.fillStyle = '#fff';
+  g.font = 'bold 14px monospace';
+  g.textAlign = 'right';
+  g.fillText('HI ' + hi + '  ' + t, W - 8, 25);
+  g.textAlign = 'left';
+}
+
+function drawOverlay(main, sub) {
+  g.fillStyle = 'rgba(5,25,5,0.65)';
+  g.fillRect(0, 0, W, H);
+  g.textAlign = 'center';
+  g.fillStyle = '#e0ffe0';
+  g.font = 'bold 24px monospace';
+  g.fillText(main, W / 2, H / 2 - 10);
+  g.fillStyle = '#aaeaaa';
+  g.font = '14px monospace';
+  g.fillText(sub, W / 2, H / 2 + 14);
+  g.textAlign = 'left';
+}
+
+/* ── loop ── */
+function loop(t) {
+  update(t);
+  drawBg();
+  pads.forEach(drawPad);
+  drawFrog();
+  drawHUD();
+  if (state === 'idle') drawOverlay('FROG JUMP', 'Space  or  tap  to  start');
+  if (state === 'dead') drawOverlay('SPLASH!  ' + elapsed.toFixed(1) + 's', 'Space  or  tap  to  retry');
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+}());
+</script>

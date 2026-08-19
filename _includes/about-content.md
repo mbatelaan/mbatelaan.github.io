@@ -13,11 +13,11 @@ Outside of research I like to spend my time cycling and running, I also enjoy pl
 - _"η and η′ meson production in J/ψ radiative decays from lattice QCD"_
   - [Phys.Rev.D 112 (2025) 7, 074505](https://doi.org/10.1103/jvpg-3ph4)
 - _"Feynman-Hellmann approach to transition matrix elements and quasidegenerate energy states"_
-  - [https://doi.org/10.1103/PhysRevD.108.034507](https://doi.org/10.1103/PhysRevD.108.034507)
+  - [Phys.Rev.D 108 (2023) 034507](https://doi.org/10.1103/PhysRevD.108.034507)
 - _"Constraining beyond the standard model nucleon isovector charges"_
-  - [https://doi.org/10.1103/PhysRevD.108.094511](https://doi.org/10.1103/PhysRevD.108.094511)
+  - [Phys.Rev.D 108 (2023) 094511](https://doi.org/10.1103/PhysRevD.108.094511)
 - _"Moments and power corrections of longitudinal and transverse proton structure functions from lattice QCD"_
-  - [https://doi.org/10.1103/PhysRevD.107.054503](https://doi.org/10.1103/PhysRevD.107.054503)
+  - [Phys.Rev.D 107 (2023) 054503](https://doi.org/10.1103/PhysRevD.107.054503)
 
 ## Proceedings
 1. M. Batelaan et al.: _"Nucleon Form Factors from the Feynman-Hellmann Method in Lattice QCD"_ [https://arxiv.org/abs/2202.01366](https://arxiv.org/abs/2202.01366)
@@ -25,9 +25,9 @@ Outside of research I like to spend my time cycling and running, I also enjoy pl
 
 ## Conference presentations
 - Lattice26: [_"η and η′ production in charmonium radiative decays"_](https://indico.global/event/16565/contributions/161645/)  [slides](/assets/presentations/MischaBatelaan_July2026.pdf)
-- Lattice22: _"Calculation of hyperon transition form factors from two-point functions using the Feynman-hellmann method"_ [Calculation of hyperon transition form factors from two-point functions using the Feynman-hellmann method](https://indico.hiskp.uni-bonn.de/event/40/contributions/531/)
-- Lattice21: _"Nucleon Form Factors from the Feynman-Hellmann Method in Lattice QCD"_ [Nucleon Form Factors from the Feynman-Hellmann Method in Lattice QCD](https://indico.cern.ch/event/1006302/contributions/4381736/)
-- APLAT2020: _"Nucleon electromagnetic form factors at high momenta using the Feynman-Hellmann method"_ [Nucleon electromagnetic form factors at large momenta using the Feynman-Hellmann theorem](https://conference-indico.kek.jp/event/113/contributions/2066/)
+- Lattice22: [_"Calculation of hyperon transition form factors from two-point functions using the Feynman-hellmann method"_](https://indico.hiskp.uni-bonn.de/event/40/contributions/531/)
+- Lattice21: [_"Nucleon Form Factors from the Feynman-Hellmann Method in Lattice QCD"_](https://indico.cern.ch/event/1006302/contributions/4381736/)
+- APLAT2020: [_"Nucleon electromagnetic form factors at high momenta using the Feynman-Hellmann method"_](https://conference-indico.kek.jp/event/113/contributions/2066/)
 
 ### Contact Me
 - email: m.batelaan [at] adelaide.edu.au

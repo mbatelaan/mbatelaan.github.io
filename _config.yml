@@ -29,6 +29,8 @@ navbar:
    link: "blog"
  - name: "Tags"
    link: "tags"
+ - name: "Fun"
+   link: "fun"
  # - name: "Resume"
  #   absolute-link: "https://.pdf"
 

@@ -1,0 +1,42 @@
+<script>
+(function(){
+  if (window.__spinCube2dInit) return;
+  window.__spinCube2dInit = true;
+ 
+  var SPEED = 40;            // degrees per second
+  var CX = 0.6, CY = 0.6;   // rotation centre (cube centre in viewBox units)
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ 
+  function collect(){
+    var gs = [];
+    document.querySelectorAll('.spin-cube-2d').forEach(function(w){
+      if (w.dataset.spin2dReady) return;
+      var g = w.querySelector('.spin-cube-2d-g');
+      if (!g) return;
+      w.dataset.spin2dReady = '1';
+      gs.push(g);
+    });
+    return gs;
+  }
+ 
+  function start(){
+    var gs = collect();
+    if (!gs.length) return;
+    if (reduce){
+      gs.forEach(function(g){ g.setAttribute('transform','rotate(20 '+CX+' '+CY+')'); });
+      return;
+    }
+    var last = performance.now(), ang = 0;
+    (function loop(t){
+      var dt = (t - last)/1000; last = t;
+      ang = (ang + SPEED*dt) % 360;
+      var tr = 'rotate(' + ang.toFixed(2) + ' ' + CX + ' ' + CY + ')';
+      gs.forEach(function(g){ g.setAttribute('transform', tr); });
+      requestAnimationFrame(loop);
+    })(last);
+  }
+ 
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+</script>
