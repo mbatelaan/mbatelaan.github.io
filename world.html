@@ -1,0 +1,273 @@
+---
+layout: fullwidth
+title: World
+---
+
+<style>
+#world-cv  { display: block; cursor: crosshair; }
+#world-msg { padding: 20px; font-family: monospace; }
+</style>
+
+<p id="world-msg">Loading map data…</p>
+<canvas id="world-cv" style="display:none;"></canvas>
+
+<script>
+(function () {
+'use strict';
+
+const cv  = document.getElementById('world-cv');
+const msg = document.getElementById('world-msg');
+const g   = cv.getContext('2d');
+
+/* ── Mercator projection: lon/lat → map pixel [x, y] ── */
+const MAP_SCALE = 10000; // full world width in map-pixels
+function proj(lon, lat) {
+  const x = (lon + 180) / 360 * MAP_SCALE;
+  const φ = lat * Math.PI / 180;
+  const y = (Math.PI - Math.log(Math.tan(Math.PI / 4 + φ / 2))) / (2 * Math.PI) * MAP_SCALE;
+  return [x, y];
+}
+const [MEL_X, MEL_Y] = proj(144.96, -37.81); // Melbourne
+
+/* ── decode TopoJSON → lon/lat rings (no library needed) ── */
+function decodeTopo(topo, name) {
+  const T = topo.transform;
+  // delta-decode arcs
+  const arcs = topo.arcs.map(a => {
+    let x = 0, y = 0;
+    return a.map(([dx, dy]) => {
+      x += dx; y += dy;
+      return [x * T.scale[0] + T.translate[0], y * T.scale[1] + T.translate[1]];
+    });
+  });
+  const arc = i => i >= 0 ? arcs[i] : [...arcs[~i]].reverse();
+  const rings = [];
+  function walk(geom) {
+    if (geom.type === 'Polygon')
+      geom.arcs.forEach(r => rings.push(r.flatMap(arc)));
+    else if (geom.type === 'MultiPolygon')
+      geom.arcs.forEach(p => p.forEach(r => rings.push(r.flatMap(arc))));
+    else if (geom.type === 'GeometryCollection')
+      geom.geometries.forEach(walk);
+  }
+  walk(topo.objects[name]);
+  return rings;
+}
+
+/* ── build canvas path from lon/lat rings ──
+   offX/offY = map-coords of the canvas origin (i.e. pan position)
+   Breaks path at antimeridian crossings (|Δlon| > 90) ── */
+function addRings(ctx, rings, offX, offY) {
+  ctx.beginPath();
+  for (const ring of rings) {
+    let plon = null;
+    for (const [lon, lat] of ring) {
+      if (lat > 83 || lat < -83) { plon = null; continue; }
+      const [x, y] = proj(lon, lat);
+      if (plon === null || Math.abs(lon - plon) > 90) ctx.moveTo(x - offX, y - offY);
+      else                                             ctx.lineTo(x - offX, y - offY);
+      plon = lon;
+    }
+  }
+}
+
+/* ── collision map: pre-render land to a small typed array ── */
+const CW = 1200; // collision canvas size
+let collData;
+function buildColl(rings) {
+  const cc = document.createElement('canvas');
+  cc.width = cc.height = CW;
+  const cg = cc.getContext('2d');
+  const s  = CW / MAP_SCALE;
+  cg.fillStyle = '#fff'; cg.fillRect(0, 0, CW, CW);
+  cg.fillStyle = '#000';
+  cg.beginPath();
+  for (const ring of rings) {
+    let plon = null;
+    for (const [lon, lat] of ring) {
+      if (lat > 83 || lat < -83) { plon = null; continue; }
+      const [x, y] = proj(lon, lat);
+      if (plon === null || Math.abs(lon - plon) > 90) cg.moveTo(x * s, y * s);
+      else                                             cg.lineTo(x * s, y * s);
+      plon = lon;
+    }
+  }
+  cg.fill('evenodd');
+  collData = cg.getImageData(0, 0, CW, CW).data;
+}
+function isLand(mx, my) {
+  const s  = CW / MAP_SCALE;
+  const cx = mx * s | 0, cy = my * s | 0;
+  if (cx < 0 || cx >= CW || cy < 0 || cy >= CW) return false;
+  return collData[(cy * CW + cx) * 4] < 128; // 0 = black = land
+}
+
+/* ── background prerender: land drawn to offscreen canvas ── */
+const BGPAD = 500;
+const bgCv  = document.createElement('canvas');
+let bgPan   = { x: Infinity, y: Infinity };
+
+function ensureBg() {
+  if (Math.abs(pan.x - bgPan.x) < BGPAD / 2 &&
+      Math.abs(pan.y - bgPan.y) < BGPAD / 2) return;
+  bgPan = { x: pan.x, y: pan.y };
+  const bc   = bgCv.getContext('2d');
+  const offX = bgPan.x - BGPAD, offY = bgPan.y - BGPAD;
+  // ocean
+  bc.fillStyle = '#ffffdd'; bc.fillRect(0, 0, bgCv.width, bgCv.height);
+  // sandy coast fringe (wider stroke behind land)
+  addRings(bc, rings, offX, offY);
+  bc.strokeStyle = '#b09040'; bc.lineWidth = 4; bc.stroke();
+  // land fill
+  bc.fillStyle = '#4a7030'; bc.fill('evenodd');
+  // thin coast outline on top
+  bc.strokeStyle = '#3a5820'; bc.lineWidth = 0.8; bc.stroke();
+}
+
+/* ── state ── */
+let rings = [], W = 0, H = 0;
+let pan   = { x: 0, y: 0 };
+let mx = 0, my = 0;
+const wake  = [];
+const boat  = { mapX: 0, mapY: 0 };
+let boatFacing = 1;
+let boosted = false;
+const SPEED = 1.8, SPEED_BOOST = 6.0, EDGE = 250;
+
+/* ── update ── */
+function update() {
+  const spd    = boosted ? SPEED_BOOST : SPEED;
+  const panSpd = spd * 1.7; // pan tracks boat speed
+  const tmx = mx + pan.x, tmy = my + pan.y; // mouse in map space
+  const dx = tmx - boat.mapX, dy = tmy - boat.mapY;
+  if (Math.hypot(dx, dy) > 5) {
+    const a = Math.atan2(dy, dx);
+    if (Math.abs(Math.cos(a)) > 0.12) boatFacing = Math.cos(a) > 0 ? 1 : -1;
+    const nx = boat.mapX + Math.cos(a) * spd;
+    const ny = boat.mapY + Math.sin(a) * spd;
+    if (!isLand(nx, ny)) {
+      wake.push({ x: boat.mapX, y: boat.mapY });
+      if (wake.length > 24) wake.shift();
+      boat.mapX = nx; boat.mapY = ny;
+    }
+  }
+  // edge-scroll: pan speed scales with boat speed
+  const sx = boat.mapX - pan.x, sy = boat.mapY - pan.y;
+  if (sx < EDGE)     pan.x -= panSpd * (1 - sx / EDGE);
+  if (sx > W - EDGE) pan.x += panSpd * (1 - (W - sx) / EDGE);
+  if (sy < EDGE)     pan.y -= panSpd * (1 - sy / EDGE);
+  if (sy > H - EDGE) pan.y += panSpd * (1 - (H - sy) / EDGE);
+}
+
+/* ── pixel-art pirate ship (P=2, bow=right, origin=waterline centre) ── */
+function drawBoat(sx, sy) {
+  const P = 2;
+  const r = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x*P, y*P, w*P, h*P); };
+  g.save();
+  g.translate(sx, sy);
+  if (boatFacing === -1) g.scale(-1, 1);
+
+  // bowsprit
+  for (let i = 0; i < 4; i++) r(7+i, -i-1, 1, 1, '#1a1008');
+  // masts
+  r(-6, -16, 1, 17, '#1a1008');
+  r( 3, -11, 1, 12, '#1a1008');
+  // yard arms
+  r(-10, -12,  9, 1, '#1a1008');
+  r( -9, -16,  7, 1, '#1a1008');
+  r(  0, -11,  7, 1, '#1a1008');
+  // sails
+  const SC = '#edeadb', SF = '#ccc8b2';
+  r(-9,-15, 7, 3, SC); r(-6,-15, 1, 3, SF);                               // main topsail
+  r(-10,-11, 9, 9, SC); r(-9,-11,1,9,SF); r(-6,-11,1,9,SF); r(-3,-11,1,9,SF); // main sail
+  r( 0,-10, 7, 2, SC); r(3,-10, 1, 2, SF);                               // fore topsail
+  r( 0, -8, 7, 7, SC); r(1,-8,1,7,SF); r(3,-8,1,7,SF); r(5,-8,1,7,SF); // fore sail
+  // jib
+  r(4,-8,2,1,SC); r(5,-7,2,1,SC); r(6,-6,1,1,SC); r(6,-5,1,1,SC); r(7,-4,1,1,SC); r(7,-3,1,1,SC);
+  // Jolly Roger
+  r(-6,-19, 5, 3, '#080808');
+  r(-5,-18, 1, 1, '#d8d8b0'); r(-3,-18, 1, 1, '#d8d8b0');
+  // stern castle
+  r(-13,-4, 3, 5, '#6e5420'); r(-13,-4, 3, 1, '#9a7840');
+  // deck
+  r(-11,-1, 22, 2, '#6e5420'); r(-11,-1, 22, 1, '#9a7840');
+  // hull
+  r(-11, 1, 22, 1, '#881818');
+  r(-11, 2, 22, 5, '#140c04');
+  for (const gx of [-9, -5, -1, 3, 7]) r(gx, 3, 2, 2, '#050302');
+  r(-9, 7, 18, 2, '#140c04');
+  r(-7, 9, 14, 1, '#140c04');
+
+  g.restore();
+}
+
+/* ── draw frame ── */
+function draw() {
+  ensureBg();
+  // blit visible slice of prerendered background
+  const bx = pan.x - bgPan.x + BGPAD, by = pan.y - bgPan.y + BGPAD;
+  g.drawImage(bgCv, bx, by, W, H, 0, 0, W, H);
+  // wake
+  wake.forEach((pt, i) => {
+    const a = (i / wake.length) * 0.32;
+    const wx = Math.round(pt.x - pan.x), wy = Math.round(pt.y - pan.y);
+    g.save(); g.globalAlpha = a; g.fillStyle = '#c8c4a0';
+    g.fillRect(wx-3, wy, 6, 1); g.fillRect(wx-5, wy+2, 10, 1);
+    g.restore();
+  });
+  // boat
+  drawBoat(Math.round(boat.mapX - pan.x), Math.round(boat.mapY - pan.y));
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+
+/* ── bootstrap: fetch TopoJSON, then start ── */
+fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/land-50m.json')
+  .then(r => r.json())
+  .then(topo => {
+    rings = decodeTopo(topo, 'land');
+    buildColl(rings);
+
+    // size canvas now that we know the navbar height
+    const top = msg.getBoundingClientRect().bottom;
+    cv.width  = W = window.innerWidth;
+    cv.height = H = Math.floor(window.innerHeight - top - 1);
+    bgCv.width  = W + BGPAD * 2;
+    bgCv.height = H + BGPAD * 2;
+
+    // centre view on Melbourne
+    pan.x = MEL_X - W / 2;
+    pan.y = MEL_Y - H / 2;
+    // boat starts in Bass Strait (open ocean south of Melbourne)
+    boat.mapX = MEL_X;
+    boat.mapY = MEL_Y + 70; // Bass Strait (scales with MAP_SCALE)
+    mx = W / 2; my = H / 2;
+
+    msg.style.display = 'none';
+    cv.style.display  = 'block';
+
+    cv.addEventListener('mousemove', e => {
+      const rc = cv.getBoundingClientRect();
+      mx = e.clientX - rc.left; my = e.clientY - rc.top;
+    });
+    cv.addEventListener('mousedown',  () => { boosted = true; });
+    cv.addEventListener('mouseup',    () => { boosted = false; });
+    cv.addEventListener('mouseleave', () => { boosted = false; });
+    cv.addEventListener('touchstart', e => {
+      e.preventDefault(); boosted = true;
+      const rc = cv.getBoundingClientRect();
+      mx = e.touches[0].clientX - rc.left; my = e.touches[0].clientY - rc.top;
+    }, { passive: false });
+    cv.addEventListener('touchmove', e => {
+      e.preventDefault();
+      const rc = cv.getBoundingClientRect();
+      mx = e.touches[0].clientX - rc.left; my = e.touches[0].clientY - rc.top;
+    }, { passive: false });
+    cv.addEventListener('touchend', () => { boosted = false; });
+
+    loop();
+  })
+  .catch(e => { msg.textContent = 'Failed to load map: ' + e.message; });
+
+}());
+</script>
