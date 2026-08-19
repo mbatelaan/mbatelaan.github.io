@@ -95,11 +95,13 @@ function buildColl(rings) {
   cg.fill('evenodd');
   collData = cg.getImageData(0, 0, CW, CW).data;
 }
-function isLand(mx, my) {
+function isLand(mapX, mapY) {
   const s  = CW / MAP_SCALE;
-  const cx = mx * s | 0, cy = my * s | 0;
+  // normalise x into [0, MAP_SCALE) so the collision canvas (one world copy) always applies
+  const nx = ((mapX % MAP_SCALE) + MAP_SCALE) % MAP_SCALE;
+  const cx = nx * s | 0, cy = mapY * s | 0;
   if (cx < 0 || cx >= CW || cy < 0 || cy >= CW) return false;
-  return collData[(cy * CW + cx) * 4] < 128; // 0 = black = land
+  return collData[(cy * CW + cx) * 4] < 128;
 }
 
 /* ── background prerender: land drawn to offscreen canvas ── */
@@ -112,16 +114,18 @@ function ensureBg() {
       Math.abs(pan.y - bgPan.y) < BGPAD / 2) return;
   bgPan = { x: pan.x, y: pan.y };
   const bc   = bgCv.getContext('2d');
-  const offX = bgPan.x - BGPAD, offY = bgPan.y - BGPAD;
-  // ocean
+  const offY = bgPan.y - BGPAD;
   bc.fillStyle = '#ffffdd'; bc.fillRect(0, 0, bgCv.width, bgCv.height);
-  // sandy coast fringe (wider stroke behind land)
-  addRings(bc, rings, offX, offY);
-  bc.strokeStyle = '#b09040'; bc.lineWidth = 4; bc.stroke();
-  // land fill
-  bc.fillStyle = '#4a7030'; bc.fill('evenodd');
-  // thin coast outline on top
-  bc.strokeStyle = '#3a5820'; bc.lineWidth = 0.8; bc.stroke();
+  // Draw 3 consecutive world copies so the east-west seam is always covered.
+  // k0 is the leftmost copy whose right edge reaches the bgCv left edge.
+  const k0 = Math.floor((bgPan.x - BGPAD) / MAP_SCALE);
+  for (const k of [k0, k0 + 1, k0 + 2]) {
+    const offX = bgPan.x - BGPAD - k * MAP_SCALE;
+    addRings(bc, rings, offX, offY);
+    bc.strokeStyle = '#b09040'; bc.lineWidth = 4; bc.stroke();
+    bc.fillStyle = '#4a7030'; bc.fill('evenodd');
+    bc.strokeStyle = '#3a5820'; bc.lineWidth = 0.8; bc.stroke();
+  }
 }
 
 /* ── state ── */
@@ -132,7 +136,7 @@ const wake  = [];
 const boat  = { mapX: 0, mapY: 0 };
 let boatFacing = 1;
 let boosted = false;
-const SPEED = 1.8, SPEED_BOOST = 6.0, EDGE = 250;
+const SPEED = 1.8, SPEED_BOOST = 6.0, EDGE = 320;
 
 /* ── update ── */
 function update() {
