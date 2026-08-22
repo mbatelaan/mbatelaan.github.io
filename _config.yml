@@ -27,8 +27,6 @@ navbar:
    link: "research"
  - name: "Blog"
    link: "blog"
- - name: "Tags"
-   link: "tags"
  - name: "Fun"
    link: "fun"
  # - name: "Resume"
